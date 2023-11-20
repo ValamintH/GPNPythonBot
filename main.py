@@ -43,31 +43,32 @@ def start_message(message):
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
     txt = message.text
+    user = message.from_user
+
     if txt == "Начать" or txt == "Меню" or txt == "Вернуться в меню":
-        bot.send_message(message.from_user.id, "Выбери интересующую опцию из меню", reply_markup=menu)
+        bot.send_message(user.id, "Выбери интересующую опцию из меню", reply_markup=menu)
     elif txt == "О подразделении":
-        bot.send_message(message.from_user.id, "[информация о подразделении]", reply_markup=menu)
+        bot.send_message(user.id, "[информация о подразделении]", reply_markup=menu)
     elif txt == "FAQ":
-        bot.send_message(message.from_user.id, "[FAQ]", reply_markup=menu)
+        bot.send_message(user.id, "[FAQ]", reply_markup=menu)
 
     elif txt == "Магазин барелек":
-        user = message.from_user
         with SessionLocal() as session:
             res = session.query(User).filter(User.id == user.id).first()
-            bot.send_message(user.id,
-                             "Добро пожаловать в магазин барелек нефти, здесь можно купить [что-то] за барельки нефти\n"
-                             f"\nТекущий баланс: {res.barrels} барелек",
-                             reply_markup=shop)
+            resp_str = "Добро пожаловать в магазин барелек нефти, здесь можно купить [что-то] за барельки нефти\n"
+            if res:
+                resp_str += f"\nТекущий баланс: {res.barrels} барелек"
+            bot.send_message(user.id, resp_str, reply_markup=shop)
     elif txt == "Как получить барельки нефти?":
-        bot.send_message(message.from_user.id, "Барельки нефти можно получить за [что-то]", reply_markup=shop)
+        bot.send_message(user.id, "Барельки нефти можно получить за [что-то]", reply_markup=shop)
     elif txt == "Каталог товаров":
-        bot.send_message(message.from_user.id, "[каталог или ссылка на него]", reply_markup=shop)
+        bot.send_message(user.id, "[каталог или ссылка на него]", reply_markup=shop)
 
     else:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         btn1 = types.KeyboardButton("Меню")
         markup.add(btn1)
-        bot.send_message(message.from_user.id,
+        bot.send_message(user.id,
                          "Неизвестная команда. Чтобы вернуться в меню, напиши Меню",
                          reply_markup=markup)
 
