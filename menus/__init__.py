@@ -82,8 +82,19 @@ def get_catalog_markup():
     with SessionLocal() as session:
         res = session.query(Product).order_by(Product.name).all()
         for prod in res:
-            desc = prod.name + " Цена: " + str(prod.price) + " Описание: " + prod.description
-            button = types.InlineKeyboardButton(desc, callback_data="g prod data " + str(prod.id))
+            desc = prod.name + ", Цена: " + str(prod.price)
+            if prod.description:
+                desc += ", Описание: " + prod.description
+            button = types.InlineKeyboardButton(desc, callback_data="g_prod data " + str(prod.id))
             markup.add(button, row_width=1)
+
+    return markup
+
+
+def get_prod_menu_markup(prod_id: str):
+    markup = types.InlineKeyboardMarkup()
+    prod_return = types.InlineKeyboardButton("В каталог", callback_data="g catalog")
+    button1 = types.InlineKeyboardButton("Купить товар", callback_data="g_prod buy " + prod_id)
+    markup.add(prod_return, button1, row_width=1)
 
     return markup

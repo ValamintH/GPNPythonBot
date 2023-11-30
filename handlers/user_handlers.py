@@ -1,6 +1,7 @@
 from db import SessionLocal
 from models.users import User
-from menus import menu, shop, get_catalog_markup
+from models.products import Product
+from menus import menu, shop, get_catalog_markup, get_prod_menu_markup
 from telebot import types, TeleBot
 
 
@@ -56,3 +57,24 @@ def general_menus_handler(call: types.CallbackQuery, bot: TeleBot):
         bot.send_message(user.id, "Список доступных для покупки товаров", reply_markup=markup)
 
     bot.answer_callback_query(call.id)
+
+
+def product_menu(call: types.CallbackQuery, bot: TeleBot):
+    """
+    callback data format: g_prod [command] [prod_id]
+    """
+    command = call.data.split()[1]
+    user = call.from_user
+    prod_id = call.data.split()[2]
+
+    with SessionLocal() as session:
+        res = session.query(Product).filter(Product.id == prod_id).first()
+        out_str = res.name + "\nЦена: " + str(res.price) + "\nОписание: " + res.description
+        if command == "buy":
+            out_str += "\n\nСделаем эту функцию потом"
+
+        markup = get_prod_menu_markup(prod_id)
+        bot.send_message(user.id, out_str, reply_markup=markup)
+
+    bot.answer_callback_query(call.id)
+

@@ -105,7 +105,7 @@ def create_product_msg_handler(message: types.Message, bot: TeleBot):
 
 def product_editor(call: types.CallbackQuery, bot: TeleBot):
     """
-    callback data format: ad_prod [command] [prod_id]
+    callback data format: g_prod [command] [prod_id]
     """
     command = call.data.split()[1]
     user = call.from_user
