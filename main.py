@@ -1,76 +1,32 @@
 import telebot
-from telebot import types
-from db import SessionLocal
-from users import User
+
+from handlers.admin_handlers import admin_menu_init, admin_menu, user_editor
+from handlers.admin_handlers import product_editor, create_product, create_product_msg_handler
+from handlers.user_handlers import start_message, general_menus_handler
 
 bot = telebot.TeleBot('6765589159:AAF240vsNvP-I-AR-EEGcVlXzm2HaRxbb_M')
-
-menu = types.ReplyKeyboardMarkup(resize_keyboard=True)
-menu_btn1 = types.KeyboardButton("О подразделении")
-menu_btn2 = types.KeyboardButton("FAQ")
-menu_btn3 = types.KeyboardButton("Магазин барелек")
-menu_btn4 = types.KeyboardButton("Вернуться в меню")
-menu.add(menu_btn1, menu_btn2, menu_btn3)
-
-shop = types.ReplyKeyboardMarkup(resize_keyboard=True)
-shop_btn1 = types.KeyboardButton("Как получить барельки нефти?")
-shop_btn2 = types.KeyboardButton("Каталог товаров")
-shop_btn3 = types.KeyboardButton("Вернуться в меню")
-shop.add(shop_btn1, shop_btn2, shop_btn3)
+bot.register_message_handler(start_message, commands=["start"], pass_bot=True)
+bot.register_message_handler(admin_menu_init, commands=["admenu"], pass_bot=True)
 
 
-@bot.message_handler(commands=["start"])
-def start_message(message):
-    user = message.from_user
-    with SessionLocal() as session:
-        res = session.query(User).filter(User.id == user.id).first()
-        if not res:
-            new_user = User(
-                id=user.id,
-                first_name=user.first_name,
-                last_name=user.last_name,
-                username=user.username,
-            )
-            session.add(new_user)
-            session.commit()
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("Начать")
-    markup.add(btn1)
-    bot.send_message(user.id, "Привет! Я Газпром-бот. Начнем работу?", reply_markup=markup)
+@bot.message_handler(content_types=["text"])
+def default_handler(message):
+    bot.send_message(message.from_user.id, "Неизвестная команда. Чтобы начать напиши \\start")
 
 
-@bot.message_handler(content_types=['text'])
-def get_text_messages(message):
-    txt = message.text
-    user = message.from_user
+def filter_call(call, filter_str):
+    return call.data.partition(' ')[0] == filter_str
 
-    if txt == "Начать" or txt == "Меню" or txt == "Вернуться в меню":
-        bot.send_message(user.id, "Выбери интересующую опцию из меню", reply_markup=menu)
-    elif txt == "О подразделении":
-        bot.send_message(user.id, "[информация о подразделении]", reply_markup=menu)
-    elif txt == "FAQ":
-        bot.send_message(user.id, "[FAQ]", reply_markup=menu)
 
-    elif txt == "Магазин барелек":
-        with SessionLocal() as session:
-            res = session.query(User).filter(User.id == user.id).first()
-            resp_str = "Добро пожаловать в магазин барелек нефти, здесь можно купить [что-то] за барельки нефти\n"
-            if res:
-                resp_str += f"\nТекущий баланс: {res.barrels} барелек"
-            bot.send_message(user.id, resp_str, reply_markup=shop)
-    elif txt == "Как получить барельки нефти?":
-        bot.send_message(user.id, "Барельки нефти можно получить за [что-то]", reply_markup=shop)
-    elif txt == "Каталог товаров":
-        bot.send_message(user.id, "[каталог или ссылка на него]", reply_markup=shop)
+bot.register_callback_query_handler(general_menus_handler, func=lambda call: filter_call(call, "g"), pass_bot=True)
 
-    else:
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        btn1 = types.KeyboardButton("Меню")
-        markup.add(btn1)
-        bot.send_message(user.id,
-                         "Неизвестная команда. Чтобы вернуться в меню, напиши Меню",
-                         reply_markup=markup)
-
+bot.register_callback_query_handler(admin_menu, func=lambda call: filter_call(call, "ad"), pass_bot=True)
+bot.register_callback_query_handler(user_editor, func=lambda call: filter_call(call, "ad_user"), pass_bot=True)
+bot.register_callback_query_handler(product_editor, func=lambda call: filter_call(call, "ad_prod"), pass_bot=True)
+bot.register_callback_query_handler(
+    create_product,
+    func=lambda call: filter_call(call, "ad_create_prod"),
+    pass_bot=True
+)
 
 bot.polling(none_stop=True, interval=0)

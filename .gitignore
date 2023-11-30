@@ -1,3 +1,6 @@
 /venv/
 /.idea/
 /tgbot.db
+/models/__pycache__/
+/menus/__pycache__/
+/handlers/__pycache__/
