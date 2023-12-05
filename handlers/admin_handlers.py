@@ -2,8 +2,9 @@ from telebot import types, TeleBot
 from db import SessionLocal
 from models.users import User
 from models.products import Product
-from menus import menu, admenu, get_prod_editor_markup, get_user_editor_markup
-from menus import get_product_list_markup, get_user_list_markup
+from models.orders import Order
+from menus import admenu, get_prod_editor_markup, get_user_editor_markup, get_order_editor_markup
+from menus import get_product_list_markup, get_user_list_markup, get_order_list_markup
 
 
 def admin_menu_init(message: types.Message, bot: TeleBot):
@@ -12,6 +13,28 @@ def admin_menu_init(message: types.Message, bot: TeleBot):
         res = session.query(User).filter(User.id == user.id).first()
         if res and res.is_admin:
             bot.send_message(user.id, "Добро пожаловать в меню администратора", reply_markup=admenu)
+        else:
+            bot.send_message(user.id, "Недостаточно прав")
+
+
+def add_barrels(message: types.Message, bot: TeleBot):
+    user = message.from_user
+    target_username = message.text.split()[1]
+    barrels = message.text.split()[2]
+    if not barrels.isdigit() or target_username[0] != '@':
+        bot.send_message(user.id, "Неверный формат команды\nПиши /add [ник получателя] [число баррелек]")
+        return
+
+    with SessionLocal() as session:
+        admin = session.query(User).filter(User.id == user.id).first()
+        if admin and admin.is_admin:
+            target_user = session.query(User).filter(User.username == target_username[1:]).first()
+            if not target_user:
+                bot.send_message(user.id, "Такого пользователя нет в базе")
+            else:
+                target_user.barrels += int(barrels)
+                session.commit()
+                bot.send_message(user.id, "Баррельки начислены")
         else:
             bot.send_message(user.id, "Недостаточно прав")
 
@@ -32,7 +55,8 @@ def admin_menu(call: types.CallbackQuery, bot: TeleBot):
         markup = get_product_list_markup()
         bot.send_message(user.id, "Выбери товар для редактирования", reply_markup=markup)
     elif data == "orders":
-        bot.send_message(user.id, "[orders]", reply_markup=menu)
+        markup = get_order_list_markup()
+        bot.send_message(user.id, "Выбери заказ для редактирования", reply_markup=markup)
 
     bot.answer_callback_query(call.id)
 
@@ -50,9 +74,11 @@ def user_editor(call: types.CallbackQuery, bot: TeleBot):
         res = session.query(User).filter(User.id == db_user_id).first()
         if command == "down":  # о т т е с т и т ь
             res.is_admin = False
+            session.commit()
             out_str = "\nПользователь понижен до обычного"
         elif command == "up":
             res.is_admin = True
+            session.commit()
             out_str = "\nПользователь повышен до администратора"
         elif command == "delete":
             session.delete(res)
@@ -92,6 +118,11 @@ def create_product_msg_handler(message: types.Message, bot: TeleBot):
         return
 
     with SessionLocal() as session:
+        old_prod = session.query(Product).order_by(Product.name).first()
+        if old_prod:
+            markup = get_product_list_markup()
+            bot.send_message(user.id, "Товар с таким именем уже существует", reply_markup=markup)
+            return
         new_prod = Product(
             name=data[0],
             description=data[2] if len(data) == 3 else None,
@@ -105,7 +136,7 @@ def create_product_msg_handler(message: types.Message, bot: TeleBot):
 
 def product_editor(call: types.CallbackQuery, bot: TeleBot):
     """
-    callback data format: g_prod [command] [prod_id]
+    callback data format: ad_prod [command] [prod_id]
     """
     command = call.data.split()[1]
     user = call.from_user
@@ -130,5 +161,28 @@ def product_editor(call: types.CallbackQuery, bot: TeleBot):
 
         markup = get_prod_editor_markup(prod_id)
         bot.send_message(user.id, res.__repr__() + out_str, reply_markup=markup)
+
+    bot.answer_callback_query(call.id)
+
+
+def order_editor(call: types.CallbackQuery, bot: TeleBot):
+    """
+    callback data format: ad_order [command] [order_id]
+    """
+    command = call.data.split()[1]
+    user = call.from_user
+    order_id = call.data.split()[2]
+    out_str = "\nВыбери, что хочешь сделать"
+
+    with SessionLocal() as session:
+        res = session.query(Order).filter(Order.id == order_id).first()
+        if command == "close":
+            session.delete(res)
+            session.commit()
+            markup = get_order_list_markup()
+            bot.send_message(user.id, "Заказ закрыт", reply_markup=markup)
+        else:
+            markup = get_order_editor_markup(order_id)
+            bot.send_message(user.id, res.__repr__() + out_str, reply_markup=markup)
 
     bot.answer_callback_query(call.id)

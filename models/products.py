@@ -1,5 +1,7 @@
 import sqlalchemy as sa
+from sqlalchemy.orm import relationship
 from db import Base
+from models.orders import Order # noqa
 
 
 class Product(Base):
@@ -9,6 +11,8 @@ class Product(Base):
     name = sa.Column(sa.String, nullable=False, unique=True)
     description = sa.Column(sa.String)
     price = sa.Column(sa.Integer, default=0)
+
+    order = relationship("Order")
 
     def __repr__(self):
         return f"Товар: {self.name}\n" \

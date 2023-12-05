@@ -1,6 +1,7 @@
 from db import SessionLocal
 from models.users import User
 from models.products import Product
+from models.orders import Order
 from menus import menu, shop, get_catalog_markup, get_prod_menu_markup
 from telebot import types, TeleBot
 
@@ -68,10 +69,23 @@ def product_menu(call: types.CallbackQuery, bot: TeleBot):
     prod_id = call.data.split()[2]
 
     with SessionLocal() as session:
-        res = session.query(Product).filter(Product.id == prod_id).first()
-        out_str = res.name + "\nЦена: " + str(res.price) + "\nОписание: " + res.description
+        db_prod = session.query(Product).filter(Product.id == prod_id).first()
+        out_str = db_prod.name + "\nЦена: " + str(db_prod.price)
+        if db_prod.description:
+            out_str += "\nОписание: " + db_prod.description
         if command == "buy":
-            out_str += "\n\nСделаем эту функцию потом"
+            db_user = session.query(User).filter(User.id == user.id).first()
+            if db_user.barrels >= db_prod.price:
+                new_order = Order(
+                    username=db_user.username,
+                    product_name=db_prod.name,
+                )
+                session.add(new_order)
+                db_user.barrels -= db_prod.price
+                session.commit()
+                out_str += "\n\nТовар куплен! Администратор свяжется с вами для его отправки"
+            else:
+                out_str += f"\n\nНедостаточно баррелек для покупки товара. Баланс: {db_user.barrels}"
 
         markup = get_prod_menu_markup(prod_id)
         bot.send_message(user.id, out_str, reply_markup=markup)

@@ -1,6 +1,7 @@
 from telebot import types
 from models.users import User
 from models.products import Product
+from models.orders import Order
 from db import SessionLocal
 
 menu = types.InlineKeyboardMarkup()
@@ -49,6 +50,19 @@ def get_product_list_markup():
     return markup
 
 
+def get_order_list_markup():
+    markup = types.InlineKeyboardMarkup()
+    button1 = types.InlineKeyboardButton("В меню", callback_data="ad menu")
+    markup.add(button1, row_width=2)
+    with SessionLocal() as session:
+        res = session.query(Order).order_by(Order.username).all()
+        for order in res:
+            button = types.InlineKeyboardButton(order.__repr__(), callback_data="ad_order data " + str(order.id))
+            markup.add(button, row_width=1)
+
+    return markup
+
+
 def get_user_editor_markup(user: User):
     markup = types.InlineKeyboardMarkup()
     user_return = types.InlineKeyboardButton("В меню", callback_data="ad menu")
@@ -71,6 +85,15 @@ def get_prod_editor_markup(prod_id: str):
     button3 = types.InlineKeyboardButton("Редактировать описание", callback_data="ad_prod desc " + prod_id)
     button4 = types.InlineKeyboardButton("Удалить товар", callback_data="ad_prod delete " + prod_id)
     markup.add(prod_return, button1, button2, button3, button4, row_width=1)
+
+    return markup
+
+
+def get_order_editor_markup(order_id: str):
+    markup = types.InlineKeyboardMarkup()
+    prod_return = types.InlineKeyboardButton("В меню", callback_data="ad menu")
+    button1 = types.InlineKeyboardButton("Закрыть заказ", callback_data="ad_order close " + order_id)
+    markup.add(prod_return, button1, row_width=1)
 
     return markup
 
