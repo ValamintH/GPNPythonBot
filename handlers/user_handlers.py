@@ -88,6 +88,8 @@ def product_menu(call: types.CallbackQuery, bot: TeleBot):
                 out_str += f"\n\nНедостаточно баррелек для покупки товара. Баланс: {db_user.barrels}"
 
         markup = get_prod_menu_markup(prod_id)
+        if db_prod.image:
+            bot.send_photo(user.id, db_prod.image)
         bot.send_message(user.id, out_str, reply_markup=markup)
 
     bot.answer_callback_query(call.id)

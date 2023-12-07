@@ -5,13 +5,14 @@ from models.orders import Order
 from db import SessionLocal
 
 menu = types.InlineKeyboardMarkup()
-btn1 = types.InlineKeyboardButton("О подразделении", callback_data="g info")
-btn2 = types.InlineKeyboardButton("FAQ", callback_data="g faq")
-btn3 = types.InlineKeyboardButton("Магазин барелек", callback_data="g to_shop")
-menu.add(btn1, btn2, btn3)
+# btn1 = types.InlineKeyboardButton("О подразделении", callback_data="g info")
+# btn2 = types.InlineKeyboardButton("FAQ", callback_data="g faq")
+btn3 = types.InlineKeyboardButton("Магазин баррелек", callback_data="g to_shop")
+# menu.add(btn1, btn2, btn3)
+menu.add(btn3)
 
 shop = types.InlineKeyboardMarkup()
-btn1 = types.InlineKeyboardButton("Как получить барельки нефти?", callback_data="g how_to_get_barrels")
+btn1 = types.InlineKeyboardButton("Как получить баррельки нефти?", callback_data="g how_to_get_barrels")
 btn2 = types.InlineKeyboardButton("Каталог товаров", callback_data="g catalog")
 btn3 = types.InlineKeyboardButton("Вернуться в меню", callback_data="g to_menu")
 shop.add(btn2, btn3, btn1, row_width=2)

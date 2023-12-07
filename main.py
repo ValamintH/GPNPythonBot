@@ -4,7 +4,9 @@ from handlers.admin_handlers import admin_menu_init, admin_menu, user_editor, or
 from handlers.admin_handlers import product_editor, create_product, add_barrels
 from handlers.user_handlers import start_message, general_menus_handler, product_menu
 
-bot = telebot.TeleBot('6765589159:AAF240vsNvP-I-AR-EEGcVlXzm2HaRxbb_M')
+TOKEN = "6765589159:AAF240vsNvP-I-AR-EEGcVlXzm2HaRxbb_M"
+
+bot = telebot.TeleBot(TOKEN)
 bot.register_message_handler(start_message, commands=["start"], pass_bot=True)
 bot.register_message_handler(admin_menu_init, commands=["admenu"], pass_bot=True)
 bot.register_message_handler(add_barrels, commands=["add"], pass_bot=True)

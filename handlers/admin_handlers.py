@@ -102,7 +102,8 @@ def create_product(call: types.CallbackQuery, bot: TeleBot):
     msg = "Введи данные для нового товара одним сообщением в формате:\n\n" \
           "имя товара\n" \
           "цена товара (в баррельках)\n" \
-          "описание товара (опционально)"
+          "описание товара (опционально)\n" \
+          "\nТакже можно приложить фотографию с изображением товара (сжимать при отправке)"
     bot.send_message(user.id, msg)
     bot.register_next_step_handler_by_chat_id(call.message.chat.id, create_product_msg_handler, bot)
 
@@ -110,27 +111,35 @@ def create_product(call: types.CallbackQuery, bot: TeleBot):
 
 
 def create_product_msg_handler(message: types.Message, bot: TeleBot):
-    data = message.text.split('\n')
+    text = message.text.split('\n') if message.text else message.caption.split('\n')
     user = message.from_user
-    if not (len(data) == 2 or len(data) == 3) or not data[1].isdigit():
+    if not (len(text) == 2 or len(text) == 3) or not text[1].isdigit():
         markup = get_product_list_markup()
         bot.send_message(user.id, "Неверный формат данных", reply_markup=markup)
         return
 
     with SessionLocal() as session:
-        old_prod = session.query(Product).order_by(Product.name).first()
+        old_prod = session.query(Product).filter(Product.name == text[0]).first()
         if old_prod:
             markup = get_product_list_markup()
             bot.send_message(user.id, "Товар с таким именем уже существует", reply_markup=markup)
             return
+
+        image = None
+        if len(message.photo) > 2:
+            image = message.photo[2].file_id
+
         new_prod = Product(
-            name=data[0],
-            description=data[2] if len(data) == 3 else None,
-            price=int(data[1]),
+            name=text[0],
+            description=text[2] if len(text) == 3 else None,
+            price=int(text[1]),
+            image=image,
         )
         session.add(new_prod)
         session.commit()
         markup = get_prod_editor_markup(str(new_prod.id))
+        if image:
+            bot.send_photo(user.id, image)
         bot.send_message(user.id, new_prod.__repr__() + "\nСоздан новый товар", reply_markup=markup)
 
 
@@ -160,6 +169,8 @@ def product_editor(call: types.CallbackQuery, bot: TeleBot):
             return
 
         markup = get_prod_editor_markup(prod_id)
+        if res.image:
+            bot.send_photo(user.id, res.image)
         bot.send_message(user.id, res.__repr__() + out_str, reply_markup=markup)
 
     bot.answer_callback_query(call.id)

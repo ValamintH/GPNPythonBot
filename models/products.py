@@ -11,6 +11,7 @@ class Product(Base):
     name = sa.Column(sa.String, nullable=False, unique=True)
     description = sa.Column(sa.String)
     price = sa.Column(sa.Integer, default=0)
+    image = sa.Column(sa.String)
 
     order = relationship("Order")
 
