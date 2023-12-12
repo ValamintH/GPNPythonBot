@@ -18,11 +18,11 @@ def start_message(message: types.Message, bot: TeleBot):
                 username=user.username,
             )
             session.add(new_user)
-            session.commit()
         else:
             res.first_name = user.first_name
             res.last_name = user.last_name
             res.username = user.username
+        session.commit()
 
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton("Начать", callback_data="g to_menu")
@@ -84,6 +84,11 @@ def product_menu(call: types.CallbackQuery, bot: TeleBot):
                 db_user.barrels -= db_prod.price
                 session.commit()
                 out_str += "\n\nТовар куплен! Администратор свяжется с вами для его отправки"
+
+                admins = session.query(User).filter(User.is_admin).all()
+                for admin in admins:
+                    bot.send_message(admin.id, "Появился новый заказ:\n\n" + new_order.__repr__())
+
             else:
                 out_str += f"\n\nНедостаточно баррелек для покупки товара. Баланс: {db_user.barrels}"
 

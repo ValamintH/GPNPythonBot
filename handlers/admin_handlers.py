@@ -19,8 +19,12 @@ def admin_menu_init(message: types.Message, bot: TeleBot):
 
 def add_barrels(message: types.Message, bot: TeleBot):
     user = message.from_user
-    target_username = message.text.split()[1]
-    barrels = message.text.split()[2]
+    command = message.text.split()
+    target_username = command[1] if len(command) == 3 else "0"
+    number = command[2] if len(command) == 3 else "0"
+    barrels = number[1:] if (number[0] == '-' or number[0] == '+') else number
+    subtract = True if number[0] == '-' else False
+
     if not barrels.isdigit() or target_username[0] != '@':
         bot.send_message(user.id, "Неверный формат команды\nПиши /add [ник получателя] [число баррелек]")
         return
@@ -32,11 +36,39 @@ def add_barrels(message: types.Message, bot: TeleBot):
             if not target_user:
                 bot.send_message(user.id, "Такого пользователя нет в базе")
             else:
-                target_user.barrels += int(barrels)
+                msg = "Баррельки начислены"
+                if subtract:
+                    target_user.barrels -= int(barrels)
+                    msg = "Баррельки убавлены"
+                else:
+                    target_user.barrels += int(barrels)
                 session.commit()
-                bot.send_message(user.id, "Баррельки начислены")
+                bot.send_message(user.id, msg)
         else:
             bot.send_message(user.id, "Недостаточно прав")
+
+
+def check_barrels(message: types.Message, bot: TeleBot):
+    user = message.from_user
+    barrels = 0
+    with SessionLocal() as session:
+        db_user = session.query(User).filter(User.id == user.id).first()
+        if not db_user:
+            new_user = User(
+                id=user.id,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                username=user.username,
+            )
+            session.add(new_user)
+        else:
+            db_user.first_name = user.first_name
+            db_user.last_name = user.last_name
+            db_user.username = user.username
+            barrels = db_user.barrels
+        session.commit()
+
+    bot.send_message(user.id, f"Текущий баланс баррелек: {barrels}")
 
 
 def admin_menu(call: types.CallbackQuery, bot: TeleBot):
@@ -71,25 +103,29 @@ def user_editor(call: types.CallbackQuery, bot: TeleBot):
     out_str = "\nВыбери, что хочешь сделать"
 
     with SessionLocal() as session:
-        res = session.query(User).filter(User.id == db_user_id).first()
+        db_user = session.query(User).filter(User.id == db_user_id).first()
         if command == "down":  # о т т е с т и т ь
-            res.is_admin = False
+            db_user.is_admin = False
             session.commit()
             out_str = "\nПользователь понижен до обычного"
         elif command == "up":
-            res.is_admin = True
+            db_user.is_admin = True
             session.commit()
             out_str = "\nПользователь повышен до администратора"
         elif command == "delete":
-            session.delete(res)
-            session.commit()
-            markup = get_user_list_markup()
-            bot.send_message(user.id, "Пользователь удален", reply_markup=markup)
-            bot.answer_callback_query(call.id)
-            return
+            order = session.query(Order).filter(Order.username == db_user.username).first()
+            if order:
+                out_str = "\nСначала закрой все заказы с этим товаром"
+            else:
+                session.delete(db_user)
+                session.commit()
+                markup = get_user_list_markup()
+                bot.send_message(user.id, "Пользователь удален", reply_markup=markup)
+                bot.answer_callback_query(call.id)
+                return
 
-        markup = get_user_editor_markup(res)
-        bot.send_message(user.id, res.__repr__() + out_str, reply_markup=markup)
+        markup = get_user_editor_markup(db_user)
+        bot.send_message(user.id, db_user.__repr__() + out_str, reply_markup=markup)
 
     bot.answer_callback_query(call.id)
 
@@ -126,7 +162,7 @@ def create_product_msg_handler(message: types.Message, bot: TeleBot):
             return
 
         image = None
-        if len(message.photo) > 2:
+        if message.photo and len(message.photo) > 2:
             image = message.photo[2].file_id
 
         new_prod = Product(
@@ -153,27 +189,67 @@ def product_editor(call: types.CallbackQuery, bot: TeleBot):
     out_str = "\nВыбери, что хочешь сделать"
 
     with SessionLocal() as session:
-        res = session.query(Product).filter(Product.id == prod_id).first()
-        if command == "name":
-            out_str = "\nСделаем эту функцию потом"
-        elif command == "price":
-            out_str = "\nСделаем эту функцию потом"
-        elif command == "desc":
-            out_str = "\nСделаем эту функцию потом"
+        prod = session.query(Product).filter(Product.id == prod_id).first()
+        update_command_list = ["name", "price", "desc", "image"]
+        if command in update_command_list:
+            bot.register_next_step_handler_by_chat_id(call.message.chat.id,
+                                                      update_prod_msg_handler, bot, command, prod_id)
+            out_str = "\nОтправь новые данные следующим сообщением"
         elif command == "delete":
-            session.delete(res)
-            session.commit()
-            markup = get_product_list_markup()
-            bot.send_message(user.id, "Товар удален", reply_markup=markup)
-            bot.answer_callback_query(call.id)
-            return
+            order = session.query(Order).filter(Order.product_name == prod.name).first()
+            if order:
+                out_str = "\nСначала закрой все заказы с этим товаром"
+            else:
+                session.delete(prod)
+                session.commit()
+                markup = get_product_list_markup()
+                bot.send_message(user.id, "Товар удален", reply_markup=markup)
+                bot.answer_callback_query(call.id)
+                return
 
         markup = get_prod_editor_markup(prod_id)
-        if res.image:
-            bot.send_photo(user.id, res.image)
-        bot.send_message(user.id, res.__repr__() + out_str, reply_markup=markup)
+        if prod.image:
+            bot.send_photo(user.id, prod.image)
+        bot.send_message(user.id, prod.__repr__() + out_str, reply_markup=markup)
 
     bot.answer_callback_query(call.id)
+
+
+def update_prod_msg_handler(message: types.Message, bot: TeleBot, command: str, prod_id: str):
+    user = message.from_user
+    out_str = ""
+    with SessionLocal() as session:
+        product = session.query(Product).filter(Product.id == prod_id).first()
+        if command == "name":
+            old_prod = session.query(Product).filter(Product.name == message.text).first()
+            if old_prod:
+                out_str = "\nТовар с таким именем уже существует"
+            else:
+                product.name = message.text
+                out_str = "\nИмя обновлено"
+        elif command == "price":
+            if not message.text.isdigit():
+                out_str = "\nНеобходимо ввести целое число"
+            else:
+                product.price = int(message.text)
+                out_str = "\nЦена обновлена"
+        elif command == "desc":
+            product.description = message.text
+            out_str = "\nОписание обновлено"
+        elif command == "image":
+            if not message.photo or not len(message.photo) > 2:
+                out_str = "\nНовая фотография не получена"
+            else:
+                product.image = message.photo[2].file_id
+                out_str = "\nФотография обновлена"
+
+        session.commit()
+
+        markup = get_prod_editor_markup(str(product.id))
+        if product.image:
+            bot.send_photo(user.id, product.image)
+
+    bot.send_message(user.id, product.__repr__() + out_str, reply_markup=markup)
 
 
 def order_editor(call: types.CallbackQuery, bot: TeleBot):
@@ -186,14 +262,17 @@ def order_editor(call: types.CallbackQuery, bot: TeleBot):
     out_str = "\nВыбери, что хочешь сделать"
 
     with SessionLocal() as session:
-        res = session.query(Order).filter(Order.id == order_id).first()
+        order = session.query(Order).filter(Order.id == order_id).first()
         if command == "close":
-            session.delete(res)
+            session.delete(order)
             session.commit()
             markup = get_order_list_markup()
             bot.send_message(user.id, "Заказ закрыт", reply_markup=markup)
         else:
             markup = get_order_editor_markup(order_id)
-            bot.send_message(user.id, res.__repr__() + out_str, reply_markup=markup)
+            prod = session.query(Product).filter(Product.name == order.product_name).first()
+            if prod.image:
+                bot.send_photo(user.id, prod.image)
+            bot.send_message(user.id, order.__repr__() + out_str, reply_markup=markup)
 
     bot.answer_callback_query(call.id)

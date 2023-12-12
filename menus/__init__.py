@@ -84,8 +84,9 @@ def get_prod_editor_markup(prod_id: str):
     button1 = types.InlineKeyboardButton("Редактировать имя", callback_data="ad_prod name " + prod_id)
     button2 = types.InlineKeyboardButton("Редактировать цену", callback_data="ad_prod price " + prod_id)
     button3 = types.InlineKeyboardButton("Редактировать описание", callback_data="ad_prod desc " + prod_id)
-    button4 = types.InlineKeyboardButton("Удалить товар", callback_data="ad_prod delete " + prod_id)
-    markup.add(prod_return, button1, button2, button3, button4, row_width=1)
+    button4 = types.InlineKeyboardButton("Редактировать фотографию", callback_data="ad_prod image " + prod_id)
+    button5 = types.InlineKeyboardButton("Удалить товар", callback_data="ad_prod delete " + prod_id)
+    markup.add(prod_return, button1, button2, button3, button4, button5, row_width=1)
 
     return markup
 

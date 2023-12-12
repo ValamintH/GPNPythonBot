@@ -1,7 +1,7 @@
 import telebot
 
 from handlers.admin_handlers import admin_menu_init, admin_menu, user_editor, order_editor
-from handlers.admin_handlers import product_editor, create_product, add_barrels
+from handlers.admin_handlers import product_editor, create_product, add_barrels, check_barrels
 from handlers.user_handlers import start_message, general_menus_handler, product_menu
 
 TOKEN = "6765589159:AAF240vsNvP-I-AR-EEGcVlXzm2HaRxbb_M"
@@ -10,11 +10,12 @@ bot = telebot.TeleBot(TOKEN)
 bot.register_message_handler(start_message, commands=["start"], pass_bot=True)
 bot.register_message_handler(admin_menu_init, commands=["admenu"], pass_bot=True)
 bot.register_message_handler(add_barrels, commands=["add"], pass_bot=True)
+bot.register_message_handler(check_barrels, commands=["barrels"], pass_bot=True)
 
 
 @bot.message_handler(content_types=["text"])
 def default_handler(message):
-    bot.send_message(message.from_user.id, "Неизвестная команда. Чтобы начать, напиши \\start")
+    bot.send_message(message.from_user.id, "Неизвестная команда. Чтобы начать, напиши /start")
 
 
 def filter_call(call, filter_str):
